@@ -21,6 +21,9 @@ import { AsyncCaller } from "../utils/async_caller.js";
 import { Run } from "../tracers/base.js";
 import { RootListenersTracer } from "../tracers/root_listener.js";
 
+export type Invocable<RunInput, RunOutput> =
+  Runnable<RunInput, RunOutput> | RunOutput
+
 export type RunnableFunc<RunInput, RunOutput> = (
   input: RunInput,
   options?:
@@ -29,7 +32,7 @@ export type RunnableFunc<RunInput, RunOutput> = (
     | Record<string, any>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     | (Record<string, any> & { config: RunnableConfig })
-) => RunOutput | Promise<RunOutput>;
+) => Invocable<RunInput, RunOutput> | Promise<Invocable<RunInput, RunOutput>>;
 
 export type RunnableMapLike<RunInput, RunOutput> = {
   [K in keyof RunOutput]: RunnableLike<RunInput, RunOutput[K]>;
@@ -1479,9 +1482,9 @@ export class RunnableLambda<RunInput, RunOutput> extends Runnable<
     config?: Partial<BaseCallbackConfig>,
     runManager?: CallbackManagerForChainRun
   ) {
-    let output = await this.func(input, { config });
+    const output = await this.func(input, { config });
     if (output && Runnable.isRunnable(output)) {
-      output = await output.invoke(
+      return output.invoke(
         input,
         this._patchConfig(config, runManager?.getChild())
       );
